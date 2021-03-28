@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.core.mail import mail_admins, send_mail
-from rest_framework import serializers
+from django.contrib.auth.tokens import default_token_generator
+from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
-from rest_framework_simplejwt.serializers import (TokenObtainPairSerializer,
-                                                  TokenRefreshSerializer)
+from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Category, Comment, Genre, Review, Title
 
@@ -19,7 +20,14 @@ class UsersSerializer(serializers.ModelSerializer):
         model = User
 
 
+class EmailSerializer(serializers.Serializer):
+
+    email = serializers.EmailField(required=True)
+
+
 class TokenObtainPairNoPasswordSerializer(TokenObtainPairSerializer):
+
+    confirmation_code = serializers.CharField(required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -27,29 +35,11 @@ class TokenObtainPairNoPasswordSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         attrs.update({'password': ''})
-        data = super(TokenObtainPairNoPasswordSerializer,
-                     self).validate(attrs)
-        user = User.objects.get(email=self.context['request'].data.get('email')
-                                )
-        data = data["refresh"]
-        send_mail(
-            'Ваш confirmation_code',
-            f'Ваш confirmation_code {data}.',
-            mail_admins,
-            [user.email],
-            fail_silently=False,
-        )
-        return {'message': 'Вам отправлено письмо с confirmation_code'}
-
-
-class TokenRefreshNoPassworSerializer(TokenRefreshSerializer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['refresh'].required = False
-
-    def validate(self, attrs):
-        attrs.update({'refresh':
-                      self.context['request'].data.get('confirmation_code')})
+        user = get_object_or_404(User, email=attrs.get('email'))
+        confirmation_code = attrs.get('confirmation_code')
+        if default_token_generator.check_token(user, confirmation_code):
+            return Response({'detail': f'{confirmation_code} is not a valid confirmation code'},
+                            status=status.HTTP_400_BAD_REQUEST)
         return super().validate(attrs)
 
 
@@ -65,28 +55,6 @@ class GenresSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ('name', 'slug')
         model = Genre
-
-
-class GenresField(serializers.SlugRelatedField):
-    def to_internal_value(self, data):
-        try:
-            return self.get_queryset().get(**{self.slug_field: data})
-        except (TypeError, ValueError):
-            self.fail('invalid')
-
-    def to_representation(self, value):
-        return GenresSerializer(value).data
-
-
-class CategoriesField(serializers.SlugRelatedField):
-    def to_internal_value(self, data):
-        try:
-            return self.get_queryset().get(**{self.slug_field: data})
-        except (TypeError, ValueError):
-            self.fail('invalid')
-
-    def to_representation(self, value):
-        return CategoriesSerializer(value).data
 
 
 class TitleReadSerializer(serializers.ModelSerializer):

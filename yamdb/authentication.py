@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import BaseBackend
 
+from yamdb.models import UserRole
+
 User = get_user_model()
 
 
@@ -13,6 +15,5 @@ class AuthenticationWithoutPassword(BaseBackend):
         except User.DoesNotExist:
             user = User(email=email)
             user.username = user.email
-            user.role = 'user'
             user.save()
         return user

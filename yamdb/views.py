@@ -1,11 +1,13 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import mail_admins, send_mail
 from django.db.models import Avg
 from django_filters import FilterSet
 from django_filters.filters import CharFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, mixins
+from rest_framework import filters, mixins, status
 from rest_framework.decorators import action
-from rest_framework.generics import get_object_or_404
+from rest_framework.generics import CreateAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
@@ -14,10 +16,10 @@ from rest_framework_simplejwt.views import TokenViewBase
 from .models import Category, Comment, Genre, Review, Title
 from .permissions import IsAdmin, IsAdminOrReadOnly, IsAuthorOrModerator
 from .serializers import (CategoriesSerializer, CommentSerializer,
-                          GenresSerializer, ReviewSerializer,
+                          EmailSerializer, GenresSerializer, ReviewSerializer,
                           TitleReadSerializer, TitleWriteSerializer,
                           TokenObtainPairNoPasswordSerializer,
-                          TokenRefreshNoPassworSerializer, UsersSerializer)
+                          UsersSerializer)
 
 User = get_user_model()
 
@@ -27,6 +29,26 @@ class MixinsViewSet(mixins.ListModelMixin,
                     mixins.CreateModelMixin,
                     GenericViewSet):
     pass
+
+
+class AuthEmailConfirmation(CreateAPIView):
+
+    def post(self, request, *args, **kwargs):
+        serializer = EmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.get(email=serializer.validated_data.get('email'))
+        token = default_token_generator.make_token(user)
+        subject = 'Confirmation code'
+        message = {
+            'user': user,
+            'confirmation_code': token,
+        }
+        send_mail(subject, message, mail_admins, [user.email], fail_silently=False)
+        return Response({'message': message}, status=status.HTTP_200_OK)
+
+
+class TokenObtainPairNoPasswordView(TokenViewBase):
+    serializer_class = TokenObtainPairNoPasswordSerializer
 
 
 class UsersViewSet(ModelViewSet):
@@ -47,14 +69,6 @@ class UsersViewSet(ModelViewSet):
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
         return Response(serializer.data)
-
-
-class TokenObtainPairNoPasswordView(TokenViewBase):
-    serializer_class = TokenObtainPairNoPasswordSerializer
-
-
-class TokenRefreshNoPasswordView(TokenViewBase):
-    serializer_class = TokenRefreshNoPassworSerializer
 
 
 class TitlesFilter(FilterSet):

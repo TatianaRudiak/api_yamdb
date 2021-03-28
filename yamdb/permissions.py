@@ -10,14 +10,14 @@ MODERATOR_METHODS = ('PATCH', 'DELETE')
 
 class IsAdmin(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role == UserRole.ADMIN or request.user.is_superuser
+        return request.user.is_admin or request.user.is_superuser
 
 
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         return (request.method in SAFE_METHODS
                 or request.user.is_authenticated
-                and request.user.role == UserRole.ADMIN
+                and request.user.is_admin
                 or request.user.is_superuser)
 
     def has_object_permission(self, request, view, obj):
@@ -34,5 +34,5 @@ class IsAuthorOrModerator(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return (request.method in MODERATOR_METHODS
-                and request.user.role == UserRole.MODERATOR
+                and request.user.is_moderator
                 or obj.author == request.user)

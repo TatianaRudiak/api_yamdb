@@ -20,26 +20,38 @@ class CustomUser(AbstractUser):
         default=UserRole.USER,
         max_length=40
     )
-    email = models.EmailField(_('email address'),
-                              unique=True)
-    bio = models.TextField(_('about me'),
-                           max_length=300,
-                           null=True,
-                           blank=True)
+    email = models.EmailField(
+        _('email address'),
+        unique=True
+    )
+    bio = models.TextField(
+        _('about me'),
+        max_length=300,
+        null=True,
+        blank=True
+    )
 
     REQUIRED_FIELDS = ['username']
     USERNAME_FIELD = 'email'
-
-    def get_short_name(self):
-        return self.email
-
-    def __str__(self):
-        return self.email
 
     class Meta:
         ordering = ['role']
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+
+    def __str__(self):
+        return self.email
+
+    def get_short_name(self):
+        return self.email
+
+    @property
+    def is_admin(self):
+        return self.role == UserRole.ADMIN
+
+    @property
+    def is_moderator(self):
+        return self.role == UserRole.MODERATOR
 
 
 class Category(models.Model):

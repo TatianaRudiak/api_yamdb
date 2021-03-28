@@ -1,10 +1,10 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import (CategoriesListCreateDestroyViewSet, CommentsViewSet,
+from .views import (AuthEmailConfirmation, CategoriesListCreateDestroyViewSet, CommentsViewSet,
                     GenresListCreateDestroyViewSet, ReviewViewSet,
-                    TitlesViewSet, TokenObtainPairNoPasswordView,
-                    TokenRefreshNoPasswordView, UsersViewSet)
+                    TitlesViewSet,
+                    TokenObtainPairNoPasswordView, UsersViewSet)
 
 router_v1 = DefaultRouter()
 router_v1.register('users', UsersViewSet,
@@ -26,14 +26,14 @@ router_v1.register(r'titles/(?P<title_id>\d+)/reviews/'
                    CommentsViewSet,
                    basename='comments')
 
-token_urlpatterns = [
-    path('token/', TokenRefreshNoPasswordView.as_view(),
+auth_urlpatterns = [
+    path('token/', TokenObtainPairNoPasswordView.as_view(),
          name='token_obtain_pair'),
-    path('email/', TokenObtainPairNoPasswordView.as_view(),
-         name='token_request_pair'),
+    path('email/', AuthEmailConfirmation.as_view(),
+         name='auth_request_confirmation_code'),
 ]
 
 urlpatterns = [
     path('v1/', include(router_v1.urls)),
-    path('v1/auth/', include(token_urlpatterns)),
+    path('v1/auth/', include(auth_urlpatterns)),
 ]
